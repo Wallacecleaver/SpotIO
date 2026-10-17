@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SpotIO · Configuration</title>
+<link rel="icon" href="/logo.svg">
+<style>
+:root{--bg:#0b0d10;--card:#14181d;--line:#232a32;--tx:#e8edf2;--mut:#8b97a3;--ac:#3ddc97;--err:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:32px 16px 64px}
+main{max-width:680px;margin:0 auto}
+header{display:flex;align-items:center;gap:14px;margin-bottom:28px}
+header img{width:48px;height:48px;border-radius:12px}
+h1{font-size:26px;margin:0;letter-spacing:-.02em}
+header p{margin:0;color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}
+.card.locked{opacity:.4;pointer-events:none}
+.step{display:flex;align-items:center;gap:10px;margin:0 0 14px;font-size:17px;font-weight:600}
+.step b{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--ac);color:#04130c;font-size:13px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:11px 20px;font:600 15px inherit;font-family:inherit;cursor:pointer;text-decoration:none;color:#04130c;background:var(--ac)}
+.btn.ghost{background:transparent;color:var(--tx);border:1px solid var(--line)}
+.btn:hover{filter:brightness(1.1)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:520px){.opts{grid-template-columns:1fr}}
+label.opt{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-size:15px}
+label.opt:has(input:checked){border-color:var(--ac);background:#3ddc9712}
+input[type=checkbox],input[type=radio]{accent-color:var(--ac)}
+h3{margin:18px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+select{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit}
+.url{display:block;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--mut);font:12px ui-monospace,Menlo,monospace;word-break:break-all;margin:12px 0}
+.err{background:#ff6b6b1a;border:1px solid var(--err);color:var(--err);border-radius:12px;padding:12px 16px;margin-bottom:16px}
+.ok{color:var(--ac)}
+small{color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+  <header><img src="/logo.svg" alt=""><div><h1>SpotIO</h1><p>Ton Spotify dans Stremio</p></div></header>
+  <div id="err" class="err" hidden></div>
+
+  <section class="card" id="s1">
+    <p class="step"><b>1</b> Connecte ton compte Spotify</p>
+    <div id="s1-out"></div>
+  </section>
+
+  <section class="card locked" id="s2">
+    <p class="step"><b>2</b> Choisis ce que tu veux voir</p>
+    <div class="opts" id="cats"></div>
+    <h3>Source de lecture</h3>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="pref" value="audio"> Audio (versions « Topic »)</label>
+      <label class="opt"><input type="radio" name="pref" value="video"> Clip officiel</label>
+    </div>
+    <h3>Pays (nouveautés)</h3>
+    <select id="country"></select>
+  </section>
+
+  <section class="card locked" id="s3">
+    <p class="step"><b>3</b> Installe l’addon</p>
+    <div class="row">
+      <a class="btn" id="i-app" href="#">Ouvrir dans Stremio</a>
+      <a class="btn ghost" id="i-web" href="#" target="_blank" rel="noopener">Stremio Web</a>
+      <button class="btn ghost" id="i-copy">Copier l’URL</button>
+    </div>
+    <code class="url" id="url"></code>
+    <small>Cette URL contient ton accès Spotify (chiffré). Ne la partage pas.</small>
+  </section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const CATS = {playlists:"Playlists",liked:"Titres likés",albums:"Albums",top:"Top titres",recent:"Récemment écoutés",new:"Nouveautés",search:"Recherche"};
+const COUNTRIES = {FR:"France",BE:"Belgique",CH:"Suisse",CA:"Canada",GB:"Royaume-Uni",US:"États-Unis",DE:"Allemagne",ES:"Espagne",IT:"Italie"};
+const q = new URLSearchParams(location.search);
+let token = q.get("token") || sessionStorage.getItem("spotio_token") || "";
+let user = q.get("user") || sessionStorage.getItem("spotio_user") || "";
+let opts = {cats:Object.keys(CATS), pref:"audio", country:"FR"};
+
+const seg = location.pathname.split("/")[1];
+if (seg && seg !== "configure") {
+  try { const j = JSON.parse(atob(seg.replace(/-/g,"+").replace(/_/g,"/"))); token = j.t; opts = {...opts, ...j.o}; } catch {}
+}
+if (q.get("token")) { sessionStorage.setItem("spotio_token", token); sessionStorage.setItem("spotio_user", user); history.replaceState(null, "", "/configure"); }
+if (q.get("error")) { $("#err").hidden = false; $("#err").textContent = q.get("error"); history.replaceState(null, "", "/configure"); }
+
+$("#cats").innerHTML = Object.entries(CATS).map(([k,v]) => `<label class="opt"><input type="checkbox" value="${k}" ${opts.cats.includes(k)?"checked":""}> ${v}</label>`).join("");
+$("#country").innerHTML = Object.entries(COUNTRIES).map(([k,v]) => `<option value="${k}" ${k===opts.country?"selected":""}>${v}</option>`).join("");
+document.querySelector(`input[name=pref][value=${opts.pref}]`).checked = true;
+
+if (token) {
+  $("#s1-out").innerHTML = `<p class="ok">✓ Connecté${user ? " en tant que <b>" + user.replace(/[<>&]/g,"") + "</b>" : ""}</p><a class="btn ghost" href="/auth/login">Changer de compte</a>`;
+  $("#s2").classList.remove("locked"); $("#s3").classList.remove("locked");
+} else {
+  $("#s1-out").innerHTML = `<p style="color:var(--mut);margin-top:0">SpotIO lit tes playlists, albums et titres likés. Rien n’est stocké sur le serveur : ton accès est chiffré dans l’URL de l’addon.</p><a class="btn" href="/auth/login">Se connecter avec Spotify</a>`;
+}
+
+function refresh() {
+  opts.cats = [...document.querySelectorAll("#cats input:checked")].map((i) => i.value);
+  opts.pref = document.querySelector("input[name=pref]:checked").value;
+  opts.country = $("#country").value;
+  if (!token) return;
+  const cfg = btoa(JSON.stringify({t: token, o: opts})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  const path = `${location.host}/${cfg}/manifest.json`;
+  $("#url").textContent = `${location.protocol}//${path}`;
+  $("#i-app").href = `stremio://${path}`;
+  $("#i-web").href = `https://web.stremio.com/#/addons?addon=${encodeURIComponent(location.protocol + "//" + path)}`;
+}
+document.addEventListener("change", refresh);
+$("#i-copy").onclick = async (e) => { await navigator.clipboard.writeText($("#url").textContent); e.target.textContent = "Copié ✓"; setTimeout(() => e.target.textContent = "Copier l’URL", 1800); };
+refresh();
+</script>
+</body>
+</html>

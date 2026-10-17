@@ -1,0 +1,10 @@
+{
+  "name": "spotio",
+  "version": "1.0.0",
+  "description": "Addon Stremio : ton Spotify (playlists, albums, titres likés…) dans Stremio, lecture via YouTube.",
+  "main": "src/server.js",
+  "scripts": { "start": "node src/server.js", "dev": "node --watch src/server.js" },
+  "engines": { "node": ">=18" },
+  "license": "MIT",
+  "dependencies": { "express": "^4.19.2" }
+}
