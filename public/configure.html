@@ -28,25 +28,34 @@ label.opt{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px 
 label.opt:has(input:checked){border-color:var(--ac);background:#3ddc9712}
 input[type=checkbox],input[type=radio]{accent-color:var(--ac)}
 h3{margin:18px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
-select{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit}
+select,textarea{background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit}
+textarea{width:100%;min-height:96px;resize:vertical;font:13px ui-monospace,Menlo,monospace}
 .url{display:block;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--mut);font:12px ui-monospace,Menlo,monospace;word-break:break-all;margin:12px 0}
 .err{background:#ff6b6b1a;border:1px solid var(--err);color:var(--err);border-radius:12px;padding:12px 16px;margin-bottom:16px}
-.ok{color:var(--ac)}
-small{color:var(--mut)}
+.ok{color:var(--ac)}.bad{color:var(--err)}
+.chk{font-size:14px;margin:6px 0 0;word-break:break-all}
+small,.mut{color:var(--mut)}
+details{margin-top:16px}summary{cursor:pointer;color:var(--mut);font-size:14px}
 </style>
 </head>
 <body>
 <main>
-  <header><img src="/logo.svg" alt=""><div><h1>SpotIO</h1><p>Ton Spotify dans Stremio</p></div></header>
+  <header><img src="/logo.svg" alt=""><div><h1>SpotIO</h1><p>Tes playlists dans Stremio</p></div></header>
   <div id="err" class="err" hidden></div>
 
   <section class="card" id="s1">
-    <p class="step"><b>1</b> Connecte ton compte Spotify</p>
-    <div id="s1-out"></div>
+    <p class="step"><b>1</b> Ajoute tes playlists</p>
+    <p class="mut" style="margin-top:0">Colle un lien par ligne : playlist ou album <b>Spotify</b> (public) ou <b>Deezer</b>. Aucun compte nécessaire.</p>
+    <textarea id="lists" placeholder="https://open.spotify.com/playlist/…&#10;https://www.deezer.com/fr/playlist/…" spellcheck="false"></textarea>
+    <div id="checks"></div>
+    <details id="spot" hidden>
+      <summary>Utiliser mon compte Spotify à la place (titres likés, top, récents…)</summary>
+      <div id="s1-out" style="margin-top:12px"></div>
+    </details>
   </section>
 
   <section class="card locked" id="s2">
-    <p class="step"><b>2</b> Choisis ce que tu veux voir</p>
+    <p class="step"><b>2</b> Choisis tes options</p>
     <div class="opts" id="cats"></div>
     <h3>Source de lecture</h3>
     <div class="opts">
@@ -58,8 +67,7 @@ small{color:var(--mut)}
       <label class="opt"><input type="radio" name="direct" value="1"> Audio direct si possible</label>
       <label class="opt"><input type="radio" name="direct" value="0"> Lecteur YouTube seul</label>
     </div>
-    <h3>Pays (nouveautés)</h3>
-    <select id="country"></select>
+    <div id="country-box" hidden><h3>Pays (nouveautés Spotify)</h3><select id="country"></select></div>
   </section>
 
   <section class="card locked" id="s3">
@@ -70,44 +78,63 @@ small{color:var(--mut)}
       <button class="btn ghost" id="i-copy">Copier l’URL</button>
     </div>
     <code class="url" id="url"></code>
-    <small>Cette URL contient ton accès Spotify (chiffré). Ne la partage pas.</small>
+    <small>Cette URL contient ta configuration (et ton accès Spotify, chiffré, si tu l’as connecté). Ne la partage pas.</small>
   </section>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
-const CATS = {playlists:"Playlists",liked:"Titres likés",albums:"Albums",top:"Top titres",recent:"Récemment écoutés",new:"Nouveautés",search:"Recherche"};
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const CATS = {lists:"Mes listes",ytsearch:"Recherche YouTube",playlists:"Playlists Spotify",liked:"Titres likés",albums:"Albums",top:"Top titres",recent:"Récemment écoutés",new:"Nouveautés",search:"Recherche Spotify"};
+const ACCOUNT = ["playlists","liked","albums","top","recent","new","search"];
 const COUNTRIES = {FR:"France",BE:"Belgique",CH:"Suisse",CA:"Canada",GB:"Royaume-Uni",US:"États-Unis",DE:"Allemagne",ES:"Espagne",IT:"Italie"};
 const q = new URLSearchParams(location.search);
 let token = q.get("token") || sessionStorage.getItem("spotio_token") || "";
 let user = q.get("user") || sessionStorage.getItem("spotio_user") || "";
-let opts = {cats:Object.keys(CATS), pref:"audio", country:"FR", direct:true};
+let opts = {cats:Object.keys(CATS), pref:"audio", country:"FR", direct:true, lists:[]};
 
 const seg = location.pathname.split("/")[1];
 if (seg && seg !== "configure") {
-  try { const j = JSON.parse(atob(seg.replace(/-/g,"+").replace(/_/g,"/"))); token = j.t; opts = {...opts, ...j.o}; } catch {}
+  try { const j = JSON.parse(atob(seg.replace(/-/g,"+").replace(/_/g,"/"))); token = j.t || ""; opts = {...opts, ...j.o}; } catch {}
 }
 if (q.get("token")) { sessionStorage.setItem("spotio_token", token); sessionStorage.setItem("spotio_user", user); history.replaceState(null, "", "/configure"); }
 if (q.get("error")) { $("#err").hidden = false; $("#err").textContent = q.get("error"); history.replaceState(null, "", "/configure"); }
 
-$("#cats").innerHTML = Object.entries(CATS).map(([k,v]) => `<label class="opt"><input type="checkbox" value="${k}" ${opts.cats.includes(k)?"checked":""}> ${v}</label>`).join("");
+$("#lists").value = (opts.lists || []).join("\n");
 $("#country").innerHTML = Object.entries(COUNTRIES).map(([k,v]) => `<option value="${k}" ${k===opts.country?"selected":""}>${v}</option>`).join("");
 document.querySelector(`input[name=pref][value=${opts.pref}]`).checked = true;
 document.querySelector(`input[name=direct][value="${opts.direct === false ? 0 : 1}"]`).checked = true;
 
-if (token) {
-  $("#s1-out").innerHTML = `<p class="ok">✓ Connecté${user ? " en tant que <b>" + user.replace(/[<>&]/g,"") + "</b>" : ""}</p><a class="btn ghost" href="/auth/login">Changer de compte</a>`;
-  $("#s2").classList.remove("locked"); $("#s3").classList.remove("locked");
-} else {
-  $("#s1-out").innerHTML = `<p style="color:var(--mut);margin-top:0">SpotIO lit tes playlists, albums et titres likés. Rien n’est stocké sur le serveur : ton accès est chiffré dans l’URL de l’addon.</p><a class="btn" href="/auth/login">Se connecter avec Spotify</a>`;
+function renderCats() {
+  const shown = Object.keys(CATS).filter((k) => token || !ACCOUNT.includes(k));
+  $("#cats").innerHTML = shown.map((k) => `<label class="opt"><input type="checkbox" value="${k}" ${opts.cats.includes(k)?"checked":""}> ${CATS[k]}</label>`).join("");
+  $("#country-box").hidden = !token;
 }
+const getLists = () => $("#lists").value.split(/[\s,]+/).filter(Boolean).slice(0, 20);
+
+const seen = new Map();
+async function check() {
+  const out = [];
+  for (const u of getLists()) {
+    if (!seen.has(u)) seen.set(u, fetch("/api/preview?u=" + encodeURIComponent(u)).then((r) => r.json()).catch(() => ({error: "Serveur injoignable"})));
+    const r = await seen.get(u);
+    out.push(r.error ? `<p class="chk bad">✗ ${esc(u)}<br><small>${esc(r.error)}</small></p>` : `<p class="chk ok">✓ ${esc(r.name)} <small>· ${r.count} titres</small></p>`);
+  }
+  $("#checks").innerHTML = out.join("");
+}
+let t; $("#lists").addEventListener("input", () => { clearTimeout(t); t = setTimeout(check, 600); refresh(); });
 
 function refresh() {
-  opts.cats = [...document.querySelectorAll("#cats input:checked")].map((i) => i.value);
+  if (!document.activeElement || !document.activeElement.matches("#lists")) opts.cats = [...document.querySelectorAll("#cats input:checked")].map((i) => i.value);
+  else opts.cats = [...document.querySelectorAll("#cats input:checked")].map((i) => i.value);
   opts.pref = document.querySelector("input[name=pref]:checked").value;
   opts.country = $("#country").value;
   opts.direct = document.querySelector("input[name=direct]:checked").value === "1";
-  if (!token) return;
-  const cfg = btoa(JSON.stringify({t: token, o: opts})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  opts.lists = getLists();
+  const ready = !!token || opts.lists.length > 0;
+  $("#s2").classList.toggle("locked", !ready); $("#s3").classList.toggle("locked", !ready);
+  if (!ready) return;
+  const o = {...opts}; if (!token) o.cats = o.cats.filter((c) => !ACCOUNT.includes(c));
+  const cfg = btoa(JSON.stringify({...(token ? {t: token} : {}), o})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
   const path = `${location.host}/${cfg}/manifest.json`;
   $("#url").textContent = `${location.protocol}//${path}`;
   $("#i-app").href = `stremio://${path}`;
@@ -115,7 +142,17 @@ function refresh() {
 }
 document.addEventListener("change", refresh);
 $("#i-copy").onclick = async (e) => { await navigator.clipboard.writeText($("#url").textContent); e.target.textContent = "Copié ✓"; setTimeout(() => e.target.textContent = "Copier l’URL", 1800); };
-refresh();
+
+(async () => {
+  const f = await fetch("/api/features").then((r) => r.json()).catch(() => ({spotify: false}));
+  if (f.spotify || token) {
+    $("#spot").hidden = false; if (token) $("#spot").open = true;
+    $("#s1-out").innerHTML = token
+      ? `<p class="ok" style="margin-top:0">✓ Connecté${user ? " en tant que <b>" + esc(user) + "</b>" : ""}</p><a class="btn ghost" href="/auth/login">Changer de compte</a>`
+      : `<p class="mut" style="margin-top:0">Nécessite un compte Spotify Premium côté serveur (API Web).</p><a class="btn" href="/auth/login">Se connecter avec Spotify</a>`;
+  }
+  renderCats(); refresh(); check();
+})();
 </script>
 </body>
 </html>

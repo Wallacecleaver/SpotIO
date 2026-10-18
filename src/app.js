@@ -6,6 +6,7 @@ const sp = require('./spotify');
 const st = require('./stats');
 const sm = require('./stremio');
 const inst = require('./instances');
+const src = require('./sources');
 const { enc, dec } = require('./crypto');
 
 const app = express();
@@ -33,6 +34,15 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.get('/logo.svg', (req, res) => res.type('image/svg+xml').send(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#0b0d10"/>' +
   '<g fill="none" stroke="#3ddc97" stroke-width="7" stroke-linecap="round"><path d="M24 42q26-9 52 3"/><path d="M29 56q21-7 42 2"/><path d="M34 69q16-5 32 1"/></g></svg>'));
+
+// --- Liens de playlists (sans compte Spotify) ---
+app.get('/api/features', (req, res) => res.json({ spotify: !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) }));
+app.get('/api/preview', async (req, res) => {
+  const s = src.parse(req.query.u);
+  if (!s) return res.status(400).json({ error: 'Lien non reconnu (playlist ou album Spotify / Deezer).' });
+  try { const l = await src.load(s); res.json({ name: l.name, count: l.tracks.length }); }
+  catch (e) { res.status(502).json({ error: e.message }); }
+});
 
 // --- OAuth Spotify ---
 app.get('/auth/login', (req, res) => {
@@ -78,7 +88,8 @@ function cfg(req, res, next) {
   try {
     const j = JSON.parse(Buffer.from(req.params.config, 'base64url').toString());
     req.cfg = {
-      refresh: dec(j.t),
+      refresh: j.t ? dec(j.t) : null,
+      lists: Array.isArray(j.o?.lists) ? j.o.lists.map(String).slice(0, 20) : [],
       cats: Array.isArray(j.o?.cats) ? j.o.cats : sm.DEFAULT_CATS,
       pref: j.o?.pref === 'video' ? 'video' : 'audio',
       direct: j.o?.direct !== false,

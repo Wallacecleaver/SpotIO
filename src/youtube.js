@@ -97,3 +97,5 @@ exports.resolve = async (track, pref) => {
   stats.cacheSet(key, { t: { id: track.id, name: track.name, artists: track.artists, dur: track.dur }, c, pref, at: Date.now() });
   return c;
 };
+
+exports.search = search;

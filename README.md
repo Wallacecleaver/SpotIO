@@ -10,9 +10,16 @@ Addon Stremio qui met **ton Spotify** dans Stremio : tes playlists, albums, titr
 - Aucune base de données utilisateur : le refresh token Spotify est **chiffré (AES-256-GCM)** dans l’URL de l’addon. Le cache des matchs YouTube est un simple fichier JSON.
 - Dashboard (`/dashboard`) : stats, derniers matchs avec miniatures, correction manuelle d’un match, erreurs, vidage du cache.
 
+## Deux modes de catalogue
+
+- **Liens de playlists (recommandé, sans compte)** : colle des liens de playlists/albums **Spotify** (publics) ou **Deezer** dans `/configure`. Les titres sont lus depuis la page embed publique de Spotify (100 titres max environ par liste) ou l’API publique de Deezer (300 max). Ni app Spotify Developer ni Premium nécessaires. Si Spotify change le format de sa page embed, l’import Spotify peut casser : le dashboard et la prévisualisation de `/configure` l’indiquent.
+- **Compte Spotify (optionnel)** : titres likés, top, récents, recherche Spotify, etc. Depuis février 2026, la Web API exige que le propriétaire de l’app soit **Premium**, et le mode développement est limité à 5 utilisateurs.
+
+Dans les deux cas, la **recherche YouTube** est disponible comme catalogue.
+
 ## Installation
 
-1. Crée une app sur <https://developer.spotify.com/dashboard> et ajoute la Redirect URI `<BASE_URL>/auth/callback`.
+1. *(Mode compte Spotify uniquement)* Crée une app sur <https://developer.spotify.com/dashboard> (nom ne commençant pas par « Spot ») et ajoute la Redirect URI `<BASE_URL>/auth/callback`.
 2. `cp .env.example .env`, remplis les variables (`SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `BASE_URL`, `SECRET`, `ADMIN_KEY`).
 3. `npm install && npm start`, puis ouvre `/configure`.
 
@@ -27,6 +34,6 @@ Les instances sont découvertes automatiquement (liste publique de Piped et d’
 
 ## Limites à connaître
 
-- Mode « development » de Spotify : seuls les comptes ajoutés dans le dashboard Spotify peuvent se connecter (25 max). Certains endpoints ont aussi été restreints pour les nouvelles apps ; vérifie la doc Spotify si un catalogue reste vide (les erreurs apparaissent dans le dashboard).
+- Mode « development » de Spotify : seuls les comptes ajoutés dans le dashboard Spotify peuvent se connecter (5 max depuis février 2026). Certains endpoints ont aussi été restreints pour les nouvelles apps ; vérifie la doc Spotify si un catalogue reste vide (les erreurs apparaissent dans le dashboard).
 - Le scraping YouTube peut être bloqué depuis certaines IP de datacenter : renseigne `YT_API_KEY` (YouTube Data API v3) pour plus de fiabilité.
 - La lecture `ytId` passe par le lecteur YouTube de Stremio : c’est de la vidéo, et le support dépend de la plateforme.
