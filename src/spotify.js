@@ -66,7 +66,7 @@ exports.simple = (t) => ({
   year: (t.album?.release_date || '').slice(0, 4),
 });
 
-const MAX_TRACKS = 300;
+const MAX_TRACKS = 2000;
 exports.playlistTracks = async (R, id) => {
   const out = [];
   for (let offset = 0; offset < MAX_TRACKS; offset += 100) {

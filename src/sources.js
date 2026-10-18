@@ -1,6 +1,6 @@
 // Import de playlists/albums par simple lien, sans compte ni API Spotify : Spotify (page embed publique) et Deezer (API publique).
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
-const MAX = 300;
+const MAX = 2000;
 const cache = new Map();
 
 function parse(u) {
@@ -41,9 +41,11 @@ async function deezer(s) {
   const j = await json(`https://api.deezer.com/${s.t}/${s.id}`);
   if (j.error) throw new Error('Deezer : ' + (j.error.message || j.error.type));
   let data = j.tracks?.data || [];
-  if (s.t === 'playlist' && j.nb_tracks > data.length) {
-    const more = await json(`https://api.deezer.com/playlist/${s.id}/tracks?index=${data.length}&limit=${MAX}`).catch(() => ({ data: [] }));
-    data = data.concat(more.data || []);
+  const total = Math.min(j.nb_tracks || data.length, MAX);
+  while (s.t === 'playlist' && data.length < total) {
+    const more = await json(`https://api.deezer.com/playlist/${s.id}/tracks?index=${data.length}&limit=300`).catch(() => ({ data: [] }));
+    if (!more.data?.length) break;
+    data = data.concat(more.data);
   }
   if (!data.length) throw new Error('aucun titre trouvé');
   return {
