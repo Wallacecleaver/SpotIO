@@ -5,7 +5,8 @@ Addon Stremio qui met **ton Spotify** dans Stremio : tes playlists, albums, titr
 ## Fonctionnement
 
 - Playlists, albums et nouveautés sont des **channels** (la liste des titres s’affiche comme des vidéos). Les titres likés, top et récents sont des **movies** (un clic, un play).
-- Pour chaque titre, SpotIO cherche la meilleure vidéo YouTube (artiste, titre, durée, chaîne « Topic », malus live/cover/remix…) et renvoie jusqu’à 3 candidats en `ytId`.
+- **Recherche du titre** : chaîne de secours API YouTube (si `YT_API_KEY`) → scraping YouTube → Piped → Invidious. Chaque candidat est noté (artiste, titre, durée, chaîne « Topic », malus live/cover/remix…).
+- **Lecture** : SpotIO propose d’abord un **flux audio direct** (Piped, puis Invidious, avec proxy de l’instance), puis jusqu’à 3 flux YouTube (`ytId`) en repli. Le mode se choisit dans `/configure`.
 - Aucune base de données utilisateur : le refresh token Spotify est **chiffré (AES-256-GCM)** dans l’URL de l’addon. Le cache des matchs YouTube est un simple fichier JSON.
 - Dashboard (`/dashboard`) : stats, derniers matchs avec miniatures, correction manuelle d’un match, erreurs, vidage du cache.
 
@@ -19,6 +20,10 @@ Addon Stremio qui met **ton Spotify** dans Stremio : tes playlists, albums, titr
 
 - **VPS / Oracle / OVH** (recommandé, le cache persiste) : `docker build -t spotio . && docker run -d -p 7000:7000 -v spotio:/data --env-file .env spotio`, derrière un reverse proxy HTTPS.
 - **Vercel** : importe le repo, définis les variables d’environnement. Le cache est alors dans `/tmp` (éphémère).
+
+## Sources audio (Piped / Invidious)
+
+Les instances sont découvertes automatiquement (liste publique de Piped et d’Invidious), testées en parallèle, et mises de côté 5 min si elles échouent. Les instances publiques sont instables : pour de meilleurs résultats, renseigne tes propres instances ou des instances fiables dans `PIPED_INSTANCES` / `INVIDIOUS_INSTANCES` (URLs séparées par des virgules). L’état des instances est visible dans le dashboard.
 
 ## Limites à connaître
 

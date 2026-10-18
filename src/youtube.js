@@ -1,4 +1,5 @@
 const stats = require('./stats');
+const inst = require('./instances');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -36,11 +37,27 @@ async function viaScrape(q) {
   }));
 }
 
+async function viaPipedSearch(q) {
+  return inst.first('piped', async (b) => {
+    const j = await inst.getJson(`${b}/search?q=${encodeURIComponent(q)}&filter=videos`);
+    return (j.items || []).filter((i) => /watch\?v=/.test(i.url || '')).slice(0, 10).map((i) => ({
+      id: new URL(i.url, 'http://x').searchParams.get('v'), title: i.title || '', channel: i.uploaderName || '', dur: i.duration > 0 ? i.duration : 0,
+    }));
+  });
+}
+async function viaInvidiousSearch(q) {
+  return inst.first('inv', async (b) => (await inst.getJson(`${b}/api/v1/search?q=${encodeURIComponent(q)}&type=video`))
+    .filter((i) => i.type === 'video').slice(0, 10).map((i) => ({ id: i.videoId, title: i.title, channel: i.author, dur: i.lengthSeconds || 0 })));
+}
+
+// Chaîne de secours : API YouTube (si clé) → scraping → Piped → Invidious
 async function search(q) {
-  if (process.env.YT_API_KEY) {
-    try { return await viaApi(q); } catch (e) { stats.error(e.message); }
+  const chain = [...(process.env.YT_API_KEY ? [viaApi] : []), viaScrape, viaPipedSearch, viaInvidiousSearch];
+  let last;
+  for (const fn of chain) {
+    try { const r = await fn(q); if (r.length) return r; } catch (e) { last = e; }
   }
-  return viaScrape(q);
+  throw last || new Error('Aucun résultat YouTube');
 }
 
 const BAD = ['live', 'cover', 'remix', 'karaoke', 'instrumental', 'sped up', 'slowed', 'reverb', '8d', 'nightcore', 'reaction', 'tutorial'];

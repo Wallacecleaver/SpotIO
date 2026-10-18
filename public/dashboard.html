@@ -80,6 +80,7 @@ async function load() {
     <div class="stat"><b>${c.stream || 0}</b><span>Lectures demandées</span></div>
     <div class="stat"><b>${ratio}</b><span>Cache (hit ratio)</span></div>
     <div class="stat"><b>${c.fail || 0}</b><span>Matchs YouTube échoués</span></div>
+    <div class="stat"><b>${c.direct_ok || 0}<small style="font-size:14px;color:var(--mut)"> / ${(c.direct_ok || 0) + (c.direct_fail || 0)}</small></b><span>Audio direct réussi</span></div>
     <div class="stat"><b>${d.cacheSize}</b><span>Titres en cache</span></div>
     <div class="stat"><b>${dur(d.uptime)}</b><span>Uptime</span></div>
   </div>
@@ -96,6 +97,8 @@ async function load() {
   <div class="panel">${Object.keys(d.overrides).length ? Object.entries(d.overrides).map(([t, v]) =>
     `<div class="err-row"><span class="tag m">manuel</span> ${esc(t)} → <a href="https://youtu.be/${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>
     <button data-unfix="${esc(t)}" style="float:right">Retirer</button></div>`).join("") : `<div class="empty">Aucune.</div>`}</div>
+  <h2>Sources audio (Piped / Invidious)</h2>
+  <div class="panel">${[["Piped", d.instances.piped], ["Invidious", d.instances.invidious]].map(([n, a]) => `<div class="err-row"><b>${n}</b> · ${a.filter((i) => i.ok).length}/${a.length} saines<br><span class="mut">${a.map((i) => (i.ok ? "● " : "○ ") + esc(i.url.replace("https://", ""))).join("  ")}</span></div>`).join("")}</div>
   <h2>Erreurs récentes</h2>
   <div class="panel">${d.errors.length ? d.errors.map((e) => `<div class="err-row"><time>${new Date(e.at).toLocaleString("fr-FR")}</time>${esc(e.msg)}</div>`).join("") : `<div class="empty">Rien à signaler ✓</div>`}</div>
   <p style="margin-top:28px"><button class="danger" id="clear">Vider tout le cache</button></p>`;

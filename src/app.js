@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const sp = require('./spotify');
 const st = require('./stats');
 const sm = require('./stremio');
+const inst = require('./instances');
 const { enc, dec } = require('./crypto');
 
 const app = express();
@@ -61,7 +62,7 @@ function admin(req, res, next) {
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(401).json({ error: 'Clé invalide.' });
   next();
 }
-app.get('/api/admin/stats', admin, (req, res) => res.json(st.snapshot()));
+app.get('/api/admin/stats', admin, async (req, res) => res.json({ ...st.snapshot(), instances: await inst.status().catch(() => ({ piped: [], invidious: [] })) }));
 app.post('/api/admin/override', admin, (req, res) => {
   const { trackId, video } = req.body || {};
   if (!/^[\w]{10,30}$/.test(trackId || '')) return res.status(400).json({ error: 'trackId invalide.' });
@@ -80,6 +81,7 @@ function cfg(req, res, next) {
       refresh: dec(j.t),
       cats: Array.isArray(j.o?.cats) ? j.o.cats : sm.DEFAULT_CATS,
       pref: j.o?.pref === 'video' ? 'video' : 'audio',
+      direct: j.o?.direct !== false,
       country: /^[A-Z]{2}$/.test(j.o?.country) ? j.o.country : 'FR',
     };
     next();

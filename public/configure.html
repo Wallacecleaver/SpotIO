@@ -53,6 +53,11 @@ small{color:var(--mut)}
       <label class="opt"><input type="radio" name="pref" value="audio"> Audio (versions « Topic »)</label>
       <label class="opt"><input type="radio" name="pref" value="video"> Clip officiel</label>
     </div>
+    <h3>Mode de lecture</h3>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="direct" value="1"> Audio direct si possible</label>
+      <label class="opt"><input type="radio" name="direct" value="0"> Lecteur YouTube seul</label>
+    </div>
     <h3>Pays (nouveautés)</h3>
     <select id="country"></select>
   </section>
@@ -75,7 +80,7 @@ const COUNTRIES = {FR:"France",BE:"Belgique",CH:"Suisse",CA:"Canada",GB:"Royaume
 const q = new URLSearchParams(location.search);
 let token = q.get("token") || sessionStorage.getItem("spotio_token") || "";
 let user = q.get("user") || sessionStorage.getItem("spotio_user") || "";
-let opts = {cats:Object.keys(CATS), pref:"audio", country:"FR"};
+let opts = {cats:Object.keys(CATS), pref:"audio", country:"FR", direct:true};
 
 const seg = location.pathname.split("/")[1];
 if (seg && seg !== "configure") {
@@ -87,6 +92,7 @@ if (q.get("error")) { $("#err").hidden = false; $("#err").textContent = q.get("e
 $("#cats").innerHTML = Object.entries(CATS).map(([k,v]) => `<label class="opt"><input type="checkbox" value="${k}" ${opts.cats.includes(k)?"checked":""}> ${v}</label>`).join("");
 $("#country").innerHTML = Object.entries(COUNTRIES).map(([k,v]) => `<option value="${k}" ${k===opts.country?"selected":""}>${v}</option>`).join("");
 document.querySelector(`input[name=pref][value=${opts.pref}]`).checked = true;
+document.querySelector(`input[name=direct][value="${opts.direct === false ? 0 : 1}"]`).checked = true;
 
 if (token) {
   $("#s1-out").innerHTML = `<p class="ok">✓ Connecté${user ? " en tant que <b>" + user.replace(/[<>&]/g,"") + "</b>" : ""}</p><a class="btn ghost" href="/auth/login">Changer de compte</a>`;
@@ -99,6 +105,7 @@ function refresh() {
   opts.cats = [...document.querySelectorAll("#cats input:checked")].map((i) => i.value);
   opts.pref = document.querySelector("input[name=pref]:checked").value;
   opts.country = $("#country").value;
+  opts.direct = document.querySelector("input[name=direct]:checked").value === "1";
   if (!token) return;
   const cfg = btoa(JSON.stringify({t: token, o: opts})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
   const path = `${location.host}/${cfg}/manifest.json`;

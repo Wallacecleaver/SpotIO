@@ -1,5 +1,6 @@
 const sp = require('./spotify');
 const yt = require('./youtube');
+const audio = require('./audio');
 
 const DEFAULT_CATS = ['playlists', 'liked', 'albums', 'top', 'recent', 'new', 'search'];
 const CATS = {
@@ -108,7 +109,15 @@ async function stream(cfg, id) {
   if (kind !== 'track') return [];
   const t = sp.simple(await sp.api(cfg.refresh, '/tracks/' + rid, {}, 600));
   const c = await yt.resolve(t, cfg.pref);
-  return c.map((x, i) => ({ ytId: x.id, name: 'SpotIO', title: `${i ? '' : '★ '}${x.title}\n${x.channel}` }));
+  const out = [];
+  if (cfg.direct && c[0]) {
+    try {
+      const a = await audio.direct(c[0].id);
+      out.push({ url: a.url, name: 'SpotIO · Audio', title: `🎧 ${a.label} (${a.via})\n${c[0].title}` });
+    } catch {}
+  }
+  out.push(...c.map((x, i) => ({ ytId: x.id, name: 'SpotIO · YouTube', title: `${i ? '' : '★ '}${x.title}\n${x.channel}` })));
+  return out;
 }
 
 module.exports = { manifest, catalog, meta, stream, DEFAULT_CATS };
